@@ -257,16 +257,10 @@ public struct JupyterMessage
 
     #endregion
 
-    //[JsonProperty(Order = 1)]
     public Header header;
-    //[JsonProperty(Order = 2)]
     public Header parent_header;
-    //[JsonProperty(Order = 3)]
     public object metadata;
-    //[JsonProperty(Order = 4)]
     public Content content;
-    //[JsonProperty(Order = 5)]
     public object[] buffers;
-    //[JsonProperty(Order = 6)]
     public Channel channel;
 }

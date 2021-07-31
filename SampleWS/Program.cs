@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -20,10 +21,10 @@ namespace SampleWS
 
         private const string XsrfHeaderKey = "X-XSRFToken";
         private const string XsrfCookieKey = "_xsrf";
-        private const string XsrfToken = "2%7C700b3e6c%7C00863d280e479c2310a79ca3c0cf7fe3%7C1626703811";
+        private static string XsrfToken = "2|18c66a09|7a13bf5ddbdce3960d3cba4f8780ca0a|1626098682";
 
         private const string LoginCookieKey = "username-localhost-8888";
-        private const string LoginCookieValue = "2|1:0|10:1627303366|23:username-localhost-8888|44:YWM5OGYwNGVlMGIyNGQ0MDk3OGYzOTRjZGMwNmM3NjI=|734984294192067c95b042198543c7eb907d8200bde8a2f8c47de1d2a348befe";
+        private static string LoginCookieValue = "2|1:0|10:1627387906|23:username-localhost-8888|44:MjZiMmMxNTgwNDlkNDRmNTg3YTIxZGQ2NDgzNmNmMzc=|2ad40c3950582499e850824e7c7e851852dfb3e7dcd81c2592f691e5ef0ae6e9";
         private const string Password = "m.jupyter";
 
 
@@ -31,8 +32,9 @@ namespace SampleWS
 
         static async Task Main(string[] args)
         {
-            var kernelId = await StartKernel(CSharpKernel);
-            var sessionId = await StartSession(kernelId, CSharpKernel);
+            await Login();
+            var kernelId = await StartKernel(PythonKernel);
+            var sessionId = await StartSession(kernelId, PythonKernel);
             
             var webSocket = await ConnectToKernelAsync(kernelId);
             
@@ -44,11 +46,37 @@ namespace SampleWS
             await Receive(webSocket);
         }
 
+        private static async Task Login()
+        {
+            var cookies = new CookieContainer();
+            var handler = new HttpClientHandler {CookieContainer = cookies};
+            var baseAddress = new Uri($"http://localhost:8888/login?password={Password}");
+            var message = new HttpRequestMessage(HttpMethod.Get, baseAddress);
+            using var client = new HttpClient(handler);
+            var response1 = await client.SendAsync(message);
+
+            var cookie = cookies.GetCookies(baseAddress).Cast<Cookie>().ToList();
+            XsrfToken = cookie[0].Value;
+            
+            var cookieContainer = new CookieContainer();
+            cookieContainer.Add(GetXsrfCookie());
+            var handle = new HttpClientHandler() {CookieContainer = cookieContainer};
+            var req = new HttpRequestMessage(HttpMethod.Post, baseAddress)
+            {
+                Headers = { {XsrfHeaderKey, XsrfToken}}
+            };
+            using var client2 = new HttpClient(handle);
+            var response2 = await client2.SendAsync(req);
+            var cok = cookieContainer.GetCookies(baseAddress).ToList();
+
+            LoginCookieValue = cok[0].Value;
+        }
+
         private static async Task<ClientWebSocket> ConnectToKernelAsync(string kernelId)
         {
             var uri = $"ws://localhost:8888/api/kernels/{kernelId}/channels";
             var uri2 = new Uri(uri);
-
+            Console.WriteLine(uri2.Host);
             var webSocket = new ClientWebSocket();
             webSocket.Options.Cookies = new CookieContainer();
             webSocket.Options.Cookies.Add(GetLoginCookie());
@@ -84,7 +112,7 @@ namespace SampleWS
             {
                 // id = kernelId,
                 // name = "",
-                path = "asghar.ipynb",
+                //path = "asghar.ipynb",
                 type = "notebook",
                 kernel = new Kernel()
                 {
@@ -136,9 +164,7 @@ namespace SampleWS
         private static Cookie GetLoginCookie()
         {
             return new Cookie(LoginCookieKey,
-                LoginCookieValue,
-                "/",
-                "localhost")
+                LoginCookieValue, "/", "localhost")
             {
                 Expires = DateTime.Now.AddYears(1)
             };
@@ -181,7 +207,7 @@ namespace SampleWS
                     msg_id = "asghar",
                     msg_type = JupyterMessage.Header.MsgType.execute_request,
                     session = sessionId,
-                    // username = "hosseinaghaei",
+                     username = "hosseinaghaei",
                     //username = "username",
                     version = "5.3"
                     //version = "5.2"
@@ -190,9 +216,9 @@ namespace SampleWS
                 content = new JupyterMessage.ExecuteRequestContent()
                 {
                     allow_stdin = true,
-                    //code = "a = 5\nprint(\"The Result : \", a**2)",
+                    code = "a = 5\nprint(\"The Result : \", a**2)",
                     //code = "count = 0\nfor i in range(int(1e10)):\n  count+=1\nprint(count)",
-                    code = "display(\"bos back\")",
+                    //code = "display(\"bos back\")",
                     silent = false,
                     stop_on_error = true,
                     store_history = true,
