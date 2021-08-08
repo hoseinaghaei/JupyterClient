@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace SampleWS
 {
@@ -24,7 +25,10 @@ namespace SampleWS
         private static string XsrfToken = "2|18c66a09|7a13bf5ddbdce3960d3cba4f8780ca0a|1626098682";
 
         private const string LoginCookieKey = "username-localhost-8888";
-        private static string LoginCookieValue = "2|1:0|10:1627387906|23:username-localhost-8888|44:MjZiMmMxNTgwNDlkNDRmNTg3YTIxZGQ2NDgzNmNmMzc=|2ad40c3950582499e850824e7c7e851852dfb3e7dcd81c2592f691e5ef0ae6e9";
+
+        private static string LoginCookieValue =
+            "2|1:0|10:1627387906|23:username-localhost-8888|44:MjZiMmMxNTgwNDlkNDRmNTg3YTIxZGQ2NDgzNmNmMzc=|2ad40c3950582499e850824e7c7e851852dfb3e7dcd81c2592f691e5ef0ae6e9";
+
         private const string Password = "m.jupyter";
 
 
@@ -35,14 +39,16 @@ namespace SampleWS
             await Login();
             var kernelId = await StartKernel(PythonKernel);
             var sessionId = await StartSession(kernelId, PythonKernel);
-            
+
             var webSocket = await ConnectToKernelAsync(kernelId);
-            
+
             Console.WriteLine($"WebSocket state: {webSocket.State}");
-            
-            var message = CreateJupyterMessage(sessionId);
-            var json = JsonConvert.SerializeObject(message);
-            await webSocket.SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, true, default);
+
+            // var message = CreateJupyterMessage(sessionId);
+            var message = CreateInspectRequestMessage();
+            var requestJson = JsonConvert.SerializeObject(message);
+            Console.WriteLine(requestJson);
+            await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true, default);
             await Receive(webSocket);
         }
 
@@ -57,13 +63,13 @@ namespace SampleWS
 
             var cookie = cookies.GetCookies(baseAddress).Cast<Cookie>().ToList();
             XsrfToken = cookie[0].Value;
-            
+
             var cookieContainer = new CookieContainer();
             cookieContainer.Add(GetXsrfCookie());
             var handle = new HttpClientHandler() {CookieContainer = cookieContainer};
             var req = new HttpRequestMessage(HttpMethod.Post, baseAddress)
             {
-                Headers = { {XsrfHeaderKey, XsrfToken}}
+                Headers = {{XsrfHeaderKey, XsrfToken}}
             };
             using var client2 = new HttpClient(handle);
             var response2 = await client2.SendAsync(req);
@@ -93,6 +99,7 @@ namespace SampleWS
             {
                 cookieContainer.Add(cookie);
             }
+
             using var handler = new HttpClientHandler() {CookieContainer = cookieContainer};
             using var client = new HttpClient(handler) {BaseAddress = baseAddress};
             var httpRequestMessage1 = new HttpRequestMessage(HttpMethod.Post, baseAddress)
@@ -140,6 +147,7 @@ namespace SampleWS
             {
                 cookieContainer.Add(cookie);
             }
+
             using var handler = new HttpClientHandler() {CookieContainer = cookieContainer};
             using var client = new HttpClient(handler) {BaseAddress = baseAddress};
             var httpRequestMessage1 = new HttpRequestMessage(HttpMethod.Post, baseAddress)
@@ -189,7 +197,7 @@ namespace SampleWS
                 ms.Seek(0, SeekOrigin.Begin);
                 using var reader = new StreamReader(ms, Encoding.UTF8);
                 var received = await reader.ReadToEndAsync();
-                //var obj = JsonConvert.DeserializeObject<JupyterMessage>(received);
+                // var obj = JsonConvert.DeserializeObject<JupyterMessage>(received);
                 Console.WriteLine(received);
                 Console.WriteLine();
                 Console.WriteLine();
@@ -197,7 +205,7 @@ namespace SampleWS
             } while (true);
         }
 
-        private static JupyterMessage CreateJupyterMessage(string sessionId)
+        private static JupyterMessage CreateExecuteRequestMessage(string sessionId)
         {
             return new JupyterMessage()
             {
@@ -207,7 +215,7 @@ namespace SampleWS
                     msg_id = "asghar",
                     msg_type = JupyterMessage.Header.MsgType.execute_request,
                     session = sessionId,
-                     username = "hosseinaghaei",
+                    username = "hosseinaghaei",
                     //username = "username",
                     version = "5.3"
                     //version = "5.2"
@@ -230,7 +238,7 @@ namespace SampleWS
             };
         }
 
-        private static JupyterMessage CreateJupyterMessage2()
+        private static JupyterMessage CreateCommOpenMessage()
         {
             return new JupyterMessage()
             {
@@ -249,6 +257,99 @@ namespace SampleWS
                     comm_id = CommId,
                     target_name = TargetName,
                     data = { }
+                },
+                metadata = { },
+                parent_header = { }
+            };
+        }
+
+        private static JupyterMessage CreateIsCompleteRequestMessage()
+        {
+            return new JupyterMessage()
+            {
+                header = new JupyterMessage.Header()
+                {
+                    date = DateTime.Now,
+                    msg_id = "a7b59eab-705c98c3f8d941fc2f6c26d7_55",
+                    msg_type = JupyterMessage.Header.MsgType.is_complete_request,
+                    session = "a7b59eab-705c98c3f8d941fc2f6c26d7",
+                    username = "hosseinaghaei",
+                    version = "5.3"
+                },
+                channel = JupyterMessage.Channel.shell,
+                content = new JupyterMessage.IsCompleteRequest()
+                {
+                    code = " "
+                },
+                metadata = { },
+                parent_header = { }
+            };
+        }
+
+        private static JupyterMessage CreateShutDownRequestMessage()
+        {
+            //kernel shutdown  request
+            return new JupyterMessage()
+            {
+                header = new JupyterMessage.Header()
+                {
+                    date = DateTime.Now,
+                    msg_id = "a7b59eab-705c98c3f8d941fc2f6c26d7_55",
+                    msg_type = JupyterMessage.Header.MsgType.shutdown_request,
+                    session = "a7b59eab-705c98c3f8d941fc2f6c26d7",
+                    username = "hosseinaghaei",
+                    version = "5.3"
+                },
+                channel = JupyterMessage.Channel.shell,
+                content = new JupyterMessage.ShutdownRequestContent()
+                {
+                    restart = false
+                },
+                metadata = { },
+                parent_header = { }
+            };
+        }
+
+        private static JupyterMessage CreateKernelInfoRequestMessage()
+        {
+            return new()
+            {
+                header = new JupyterMessage.Header()
+                {
+                    date = DateTime.Now,
+                    msg_id = "a7b59eab-705c98c3f8d941fc2f6c26d7_55",
+                    msg_type = JupyterMessage.Header.MsgType.kernel_info_request,
+                    session = "a7b59eab-705c98c3f8d941fc2f6c26d7",
+                    username = "hosseinaghaei",
+                    version = "5.3"
+                },
+                channel = JupyterMessage.Channel.shell,
+                content = new JupyterMessage.KernelInfoRequestContent()
+                    { },
+                metadata = { },
+                parent_header = { }
+            };
+        }
+
+        private static JupyterMessage CreateInspectRequestMessage()
+        {
+            return new()
+            {
+                header = new JupyterMessage.Header()
+                {
+                    date = DateTime.Now,
+                    msg_id = "a7b59eab-705c98c3f8d941fc2f6c26d7_55",
+                    msg_type = JupyterMessage.Header.MsgType.inspect_request,
+                    session = "a7b59eab-705c98c3f8d941fc2f6c26d7",
+                    username = "hosseinaghaei",
+                    version = "5.3"
+                },
+                channel = JupyterMessage.Channel.shell,
+                content = new JupyterMessage.InspectRequestContent()
+                {
+                    code = "",
+                    cursor_pos = 0,
+                    detail_level = 0
                 },
                 metadata = { },
                 parent_header = { }
@@ -282,7 +383,8 @@ namespace SampleWS
 
         private static Dictionary<string, object> ReadPicture()
         {
-            return new() {{"Pic", File.ReadAllBytes("/Users/hosseinaghaei/Downloads/boy_result.jpg")}};
+            // return new() {{"Pic", File.ReadAllBytes("/Users/hosseinaghaei/Downloads/boy_result.jpg")}};
+            return new() {{"Pic", File.ReadAllBytes("D:/Uni/form1-bolandi-karamozi.jpg")}};
         }
     }
 }
