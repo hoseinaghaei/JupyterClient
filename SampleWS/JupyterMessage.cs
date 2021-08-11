@@ -49,6 +49,7 @@ public struct JupyterMessage
         public MsgType msg_type;
         public string username;
         public string session; // typically UUID, should be unique per session
+        [JsonConverter(typeof(CustomDateTimeConverter))]
         public DateTime date; //ISO 8601 timestamp for when the message is created
         public string version;
     }
@@ -263,4 +264,11 @@ public struct JupyterMessage
     public Content content;
     public object[] buffers;
     public Channel channel;
+}
+class CustomDateTimeConverter : IsoDateTimeConverter
+{
+    public CustomDateTimeConverter()
+    {
+        base.DateTimeFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+    }
 }
