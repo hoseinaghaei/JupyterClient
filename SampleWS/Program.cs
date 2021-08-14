@@ -39,66 +39,47 @@ namespace SampleWS
 
         static async Task Main(string[] args)
         {
+            // var gc = new ByteArrayTransfer(100_000);
+            var gc = new HardCodeDataTransfer(100_000);
+            // var gc = new JsonDataTransfer(100_000);
 
-            var gc = new CodeTransformer();
-            gc.GenerateHardCode(1000000);
-            
             await Login();
             var kernelId = await StartKernel(CSharpKernel);
             var sessionId = await StartSession(kernelId, CSharpKernel);
-
-            var webSocket = await ConnectToKernelAsync(kernelId,sessionId);
-
+            var webSocket = await ConnectToKernelAsync(kernelId, sessionId);
             Console.WriteLine($"WebSocket state: {webSocket.State}");
 
-            await SendBigData(sessionId,webSocket,gc);
-          
-          
+            await SendBigData(sessionId, webSocket, gc);
         }
 
-        
 
-        private static async Task SendBigData(string sessionId,WebSocket webSocket,CodeTransformer gc)
+        private static async Task SendBigData(string sessionId, WebSocket webSocket, IDataTransfer gc)
         {
-            var startTime = DateTime.Now;
-            // Marshal.SizeOf(new SampleObject() {row = 4, id = "fefefsfesvvrbrerevervre", dt = DateTime.Now});
-            
-            var message = CreateCSExecuteRequestMessage(sessionId,gc.hardCodeInit);
+            var message = CreateCSExecuteRequestMessage(sessionId, gc.InitialPart);
             var requestJson = JsonConvert.SerializeObject(message);
-            Console.WriteLine("request1>>>>>>>>>>>>>>>>>>>>>>>>> \n"+requestJson);
+            // Console.WriteLine("request1>>>>>>>>>>>>>>>>>>>>>>>>> \n" + requestJson);
             Console.WriteLine("-------------------------------------------------------------------------------");
             await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true, default);
-            var t =Receive(webSocket);
-            // Thread.Sleep(2000);
-            gc._hardCodeRepeatPart.ForEach(async part =>
+            var t = Receive(webSocket);
+
+            gc.RepeativePart.ForEach(async part =>
             {
-                message = CreateCSExecuteRequestMessage(sessionId,part);
+                message = CreateCSExecuteRequestMessage(sessionId, part);
                 requestJson = JsonConvert.SerializeObject(message);
-                // Console.WriteLine("request2>>>>>>>>>>>>>>>\n"+requestJson);
-                // Console.WriteLine("-------------------------------------------------------------------------------");
+                // Console.WriteLine("request2>>>>>>>>>>>>>>>\n" + requestJson);
+                Console.WriteLine("-------------------------------------------------------------------------------");
                 await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true, default);
-                
-                // await Receive(webSocket);
-                // Thread.Sleep(100);  
             });
-            
-            message = CreateCSExecuteRequestMessage(sessionId,gc.hardCodeFinal);
+
+            message = CreateCSExecuteRequestMessage(sessionId, gc.FinalPart);
             requestJson = JsonConvert.SerializeObject(message);
-            Console.WriteLine("request3>>>>>>>>>>>>>>> "+requestJson);
+            // Console.WriteLine("request3>>>>>>>>>>>>>>> " + requestJson);
             Console.WriteLine("-------------------------------------------------------------------------------");
             await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true, default);
-            // await Receive(webSocket);
-            try
-            {
-                await t;
-            }
-            finally
-            {
-                Console.WriteLine($"{DateTime.Now}---{startTime}");
-            } 
             
+            await t;
         }
-        
+
         private static async Task Login()
         {
             var cookies = new CookieContainer();
@@ -125,7 +106,7 @@ namespace SampleWS
             LoginCookieValue = cok[0].Value;
         }
 
-        private static async Task<ClientWebSocket> ConnectToKernelAsync(string kernelId,string sessionId)
+        private static async Task<ClientWebSocket> ConnectToKernelAsync(string kernelId, string sessionId)
         {
             var uri = $"ws://localhost:8888/api/kernels/{kernelId}/channels?session_id={sessionId}";
             var uri2 = new Uri(uri);
@@ -239,8 +220,8 @@ namespace SampleWS
                 } while (!result.EndOfMessage);
 
                 if (result.MessageType == WebSocketMessageType.Close)
-                    break;   
-                
+                    break;
+
 
                 ms.Seek(0, SeekOrigin.Begin);
                 using var reader = new StreamReader(ms, Encoding.UTF8);
@@ -249,11 +230,11 @@ namespace SampleWS
                 // var parsed = JObject.Parse(received);
                 // if(parsed["msg_type"].Equals("status") && parsed.ContainsKey("parent_header")))
                 // var obj = JsonConvert.DeserializeObject<JupyterMessage>(received);
-                Console.WriteLine($"received {DateTime.Now.ToLongTimeString()}<<<<<<<<<<<<\n{received}\n------------------------------------------------------");
+                Console.WriteLine(
+                    $"received {DateTime.Now.ToLongTimeString()}<<<<<<<<<<<<\n{received}\n------------------------------------------------------");
                 // Console.WriteLine(received);
                 // Console.WriteLine("-------------------------------------------------------------------------------");
                 // Console.WriteLine();
-
             } while (true);
         }
 
@@ -289,7 +270,8 @@ namespace SampleWS
                 buffers = Array.Empty<object>()
             };
         }
-        private static JupyterMessage CreateCSExecuteRequestMessage(string sessionId,string executecode=null)
+
+        private static JupyterMessage CreateCSExecuteRequestMessage(string sessionId, string executecode = null)
         {
             return new JupyterMessage()
             {
@@ -309,14 +291,14 @@ namespace SampleWS
                 content = new JupyterMessage.ExecuteRequestContent()
                 {
                     allow_stdin = true,
-                    code =executecode??"var a = 100;\ndisplay(a);",
+                    code = executecode ?? "var a = 100;\ndisplay(a);",
                     //code = "count = 0\nfor i in range(int(1e10)):\n  count+=1\nprint(count)",
                     silent = false,
                     stop_on_error = true,
                     store_history = true,
                     user_expressions = null
                 },
-                metadata = new Dictionary<string,object>()
+                metadata = new Dictionary<string, object>()
                 {
                     {"deletedCells", Array.Empty<object>()},
                     {"cellId", "a6418586-c721-48bd-a1cf-6122dd4d9313"}
