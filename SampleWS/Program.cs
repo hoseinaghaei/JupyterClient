@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -39,17 +40,25 @@ namespace SampleWS
 
         static async Task Main(string[] args)
         {
-            // var gc = new ByteArrayTransfer(100_000);
-            var gc = new HardCodeDataTransfer(100_000);
-            // var gc = new JsonDataTransfer(100_000);
+            var cookies = await Login();
+            
+            var fh = new JupyterFileManager("http://localhost:8888", XsrfToken,cookies[0],cookies[1]);
+            
+            // await fh.UploadFileAsync("","viiivv.txt",BaseConverter.Base64Encode("printtt\n oooo"),true);
+            // var file =await fh.DownloadFileAsync("","viiivv.txt",true);
+            // Console.WriteLine(BaseConverter.Base64Decode(file.content));
+            var t = await fh.ExistDirectoryAsync("/AAAAAAAAA");
+            await fh.CreateDirectoryAsync("/AAAAAAAAA");
+            // await fh.GetDirectoryAsync("/test_directory_pyrun");
+            // await fh.ChangeContentFileAsync("","vvi.txt","vrv");
+            // await fh.DeleteFileAsync("","vvi.txt");
 
-            await Login();
-            var kernelId = await StartKernel(CSharpKernel);
-            var sessionId = await StartSession(kernelId, CSharpKernel);
-            var webSocket = await ConnectToKernelAsync(kernelId, sessionId);
-            Console.WriteLine($"WebSocket state: {webSocket.State}");
 
-            await SendBigData(sessionId, webSocket, gc);
+            // var kernelId = await StartKernel(CSharpKernel);
+            // var sessionId = await StartSession(kernelId, CSharpKernel);
+            // var webSocket = await ConnectToKernelAsync(kernelId, sessionId);
+            // Console.WriteLine($"WebSocket state: {webSocket.State}");
+
         }
 
 
@@ -80,7 +89,7 @@ namespace SampleWS
             await t;
         }
 
-        private static async Task Login()
+        private static async Task<List<Cookie>> Login()
         {
             var cookies = new CookieContainer();
             var handler = new HttpClientHandler {CookieContainer = cookies};
@@ -91,7 +100,7 @@ namespace SampleWS
 
             var cookie = cookies.GetCookies(baseAddress).Cast<Cookie>().ToList();
             XsrfToken = cookie[0].Value;
-
+            Console.WriteLine($"XsrfToken {XsrfToken}}}");
             var cookieContainer = new CookieContainer();
             cookieContainer.Add(GetXsrfCookie());
             var handle = new HttpClientHandler() {CookieContainer = cookieContainer};
@@ -99,11 +108,14 @@ namespace SampleWS
             {
                 Headers = {{XsrfHeaderKey, XsrfToken}}
             };
+            Console.WriteLine($"XsrfHeaderKey {XsrfHeaderKey}\nXsrfCookieKey {XsrfCookieKey}\nXsrfToken {XsrfToken}}}");
+
             using var client2 = new HttpClient(handle);
             var response2 = await client2.SendAsync(req);
             var cok = cookieContainer.GetCookies(baseAddress).ToList();
 
             LoginCookieValue = cok[0].Value;
+            return cok;
         }
 
         private static async Task<ClientWebSocket> ConnectToKernelAsync(string kernelId, string sessionId)
@@ -206,6 +218,7 @@ namespace SampleWS
             };
         }
 
+        
         private static async Task Receive(WebSocket socket)
         {
             var buffer = new ArraySegment<byte>(new byte[2048]);
@@ -238,38 +251,10 @@ namespace SampleWS
             } while (true);
         }
 
-        private static JupyterMessage CreateExecuteRequestMessage(string sessionId)
-        {
-            return new JupyterMessage()
-            {
-                header = new JupyterMessage.Header()
-                {
-                    date = DateTime.Now,
-                    msg_id = "asghar",
-                    msg_type = JupyterMessage.Header.MsgType.execute_request,
-                    session = sessionId,
-                    username = "hosseinaghaei",
-                    //username = "username",
-                    version = "5.3"
-                    //version = "5.2"
-                },
-                channel = JupyterMessage.Channel.shell,
-                content = new JupyterMessage.ExecuteRequestContent()
-                {
-                    allow_stdin = true,
-                    code = "a = 5\nprint(\"The Result : \", a**2)",
-                    //code = "count = 0\nfor i in range(int(1e10)):\n  count+=1\nprint(count)",
-                    //code = "display(\"bos back\")",
-                    silent = false,
-                    stop_on_error = true,
-                    store_history = true,
-                    user_expressions = { }
-                },
-                metadata = { },
-                parent_header = { },
-                buffers = Array.Empty<object>()
-            };
-        }
+        
+        #region PythonMethods
+
+        
 
         private static JupyterMessage CreateCSExecuteRequestMessage(string sessionId, string executecode = null)
         {
@@ -455,6 +440,21 @@ namespace SampleWS
         {
             // return new() {{"Pic", File.ReadAllBytes("/Users/hosseinaghaei/Downloads/boy_result.jpg")}};
             return new() {{"Pic", File.ReadAllBytes("D:/Uni/form1-bolandi-karamozi.jpg")}};
+        }
+        #endregion
+
+    }
+
+
+    static class BaseConverter
+    {
+        public static string Base64Encode(string plainText) {
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return System.Convert.ToBase64String(plainTextBytes);
+        }
+        public static string Base64Decode(string base64EncodedData) {
+            var base64EncodedBytes = System.Convert.FromBase64String(base64EncodedData);
+            return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
         }
     }
 }
