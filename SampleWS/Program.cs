@@ -43,12 +43,54 @@ namespace SampleWS
             var cookies = await Login();
             
             var fh = new JupyterFileManager("http://localhost:8888", XsrfToken,cookies[0],cookies[1]);
+            await fh.DeleteFileAsync("bbb", "untitledoo");
+            return;
+            // await fh.ChangeContentFileAsync("/bbb", "uyntitledi.t", "aaa");
+            // await fh.ChangeContentFileAsync("/bbb", "uyntitledi.t", "aaa");
+            // return;
+            string nameVar = "aakppgbfh";
             
-            // await fh.UploadFileAsync("","viiivv.txt",BaseConverter.Base64Encode("printtt\n oooo"),true);
-            // var file =await fh.DownloadFileAsync("","viiivv.txt",true);
+            await fh.UploadFileAsync("",nameVar+"testfile.txt",BaseConverter.Base64Encode("\"Hello\n World! !!!\""),Format.UploadFormat.base64);
+            await fh.RenameFileAsync("", nameVar+"utestfile.txt", "test.txt");
+            // var file =await fh.DownloadFileAsync("",nameVar+"testfile.txt",Format.DownloadFormat.base64);
+
+            // var s =await fh.DownloadFileAsStreamAsync("",nameVar+"testfile.txt",Format.DownloadFormat.text);
+            // byte[] bytes = new byte[s.Length + 10];
+            // int numBytesToRead = (int)s.Length;
+            // int numBytesRead = 0;
+            // do
+            // {
+            //     // Read may return anything from 0 to 10.
+            //     int n = s.Read(bytes, numBytesRead, 10);
+            //     numBytesRead += n;
+            //     numBytesToRead -= n;
+            // } while (numBytesToRead > 0);
+            // s.Close();
+            // string str = Encoding.Default.GetString(bytes);
+            // Console.WriteLine(str);
+            //
+
             // Console.WriteLine(BaseConverter.Base64Decode(file.content));
-            var t = await fh.ExistDirectoryAsync("/AAAAAAAAA");
-            await fh.CreateDirectoryAsync("/AAAAAAAAA");
+            // Console.WriteLine(file.content);
+            // Console.WriteLine(file.last_modified.GetType()+" "+file.last_modified.ToLongTimeString()+" "+file.last_modified.ToLongDateString()+" "+file.size+" "+file.mimetype);
+            //
+            // StringBuilder  sb = new StringBuilder();
+            // using (StringWriter sw = new StringWriter(sb))
+            // using (JsonTextWriter writer = new JsonTextWriter(sw))
+            // {
+            //     writer.QuoteChar = '\'';
+            //
+            //     JsonSerializer ser = new JsonSerializer();
+            //     ser.Serialize(writer,file );
+            // }
+            //
+            // var js = sb.ToString();
+            // Console.WriteLine(js);
+            // await fh.UploadFileAsync("",nameVar+"2testfile.json",js,Format.UploadFormat.json);
+
+
+            // var t = await fh.ExistDirectoryAsync("/AAAAAAAAA");
+            // await fh.CreateDirectoryAsync("/AAAAAAAAA");
             // await fh.GetDirectoryAsync("/test_directory_pyrun");
             // await fh.ChangeContentFileAsync("","vvi.txt","vrv");
             // await fh.DeleteFileAsync("","vvi.txt");
@@ -100,7 +142,6 @@ namespace SampleWS
 
             var cookie = cookies.GetCookies(baseAddress).Cast<Cookie>().ToList();
             XsrfToken = cookie[0].Value;
-            Console.WriteLine($"XsrfToken {XsrfToken}}}");
             var cookieContainer = new CookieContainer();
             cookieContainer.Add(GetXsrfCookie());
             var handle = new HttpClientHandler() {CookieContainer = cookieContainer};
@@ -108,7 +149,6 @@ namespace SampleWS
             {
                 Headers = {{XsrfHeaderKey, XsrfToken}}
             };
-            Console.WriteLine($"XsrfHeaderKey {XsrfHeaderKey}\nXsrfCookieKey {XsrfCookieKey}\nXsrfToken {XsrfToken}}}");
 
             using var client2 = new HttpClient(handle);
             var response2 = await client2.SendAsync(req);

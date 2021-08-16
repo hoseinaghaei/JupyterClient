@@ -10,20 +10,17 @@ namespace SampleWS
 {
     public interface IJupyterFileManager
     {
-        public string BaseAddress { get; }
-        public string XsrfToken { get; }
-        public Cookie LoginCookie { get; }
-        public Cookie XsrfCookie { get; }
-
         Task<IEnumerable<FileDetails>> GetDirectoryAsync(string path);
-        Task<FileDetails> DownloadFileAsync(string path,string name, bool? isBase64 = false);
+        Task<FileDetails> DownloadFileAsync(string path,string name, Format.DownloadFormat? format = Format.DownloadFormat.text);
+        Task<Stream> DownloadFileAsStreamAsync(string path, string name,
+            Format.DownloadFormat? format = Format.DownloadFormat.text);
         Task<bool> ExistFileAsync(string path,string name);
         Task<bool> ExistDirectoryAsync(string path);
         Task<bool> CreateDirectoryAsync(string path);
-        Task<bool> UploadFileAsync(string path,string name,string content, bool? isBase64 = false);
-        Task<bool> RenameFileAsync(string path,string name,string newName);
-        Task<bool> ChangeContentFileAsync(string path,string name,string newContent, bool? isBase64 = false);
-        Task<bool> DeleteFileAsync(string path,string name);
-        Task<bool> DeleteDirectoryAsync(string path);
+        Task UploadFileAsync(string path,string name,string content, Format.UploadFormat? format = Format.UploadFormat.text);
+        Task RenameFileAsync(string path,string name,string newName);
+        Task ChangeContentFileAsync(string path,string name,string newContent,Format.UploadFormat? format = Format.UploadFormat.text);
+        Task DeleteFileAsync(string path,string name);
+        Task DeleteDirectoryAsync(string path);
     }
 }
