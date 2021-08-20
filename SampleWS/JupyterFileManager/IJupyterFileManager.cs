@@ -11,15 +11,15 @@ namespace SampleWS
     public interface IJupyterFileManager
     {
         Task<IEnumerable<FileDetails>> GetDirectoryAsync(string path);
-        Task<FileDetails> DownloadFileAsync(string path,string name, Format.DownloadFormat? format = Format.DownloadFormat.text);
+        Task<FileDetails> DownloadFileAsync(string path,string name, ContentFormat? format = ContentFormat.Text);
         Task<Stream> DownloadFileAsStreamAsync(string path, string name,
-            Format.DownloadFormat? format = Format.DownloadFormat.text);
+            ContentFormat? format = ContentFormat.Text);
         Task<bool> ExistFileAsync(string path,string name);
         Task<bool> ExistDirectoryAsync(string path);
-        Task<bool> CreateDirectoryAsync(string path);
-        Task UploadFileAsync(string path,string name,string content, Format.UploadFormat? format = Format.UploadFormat.text);
+        Task CreateDirectoryAsync(string path);
+        Task<string> UploadFileAsync(string path,string name,string content, ContentFormat? format = ContentFormat.Text);
         Task RenameFileAsync(string path,string name,string newName);
-        Task ChangeContentFileAsync(string path,string name,string newContent,Format.UploadFormat? format = Format.UploadFormat.text);
+        Task EditFileAsync(string path,string name,string newContent,ContentFormat? format = ContentFormat.Text);
         Task DeleteFileAsync(string path,string name);
         Task DeleteDirectoryAsync(string path);
     }

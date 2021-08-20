@@ -48,7 +48,7 @@ namespace SampleWS
             return await ExistAsync(path, null, false);
         }
 
-        public async Task<bool> CreateDirectoryAsync(string path)
+        public async Task CreateDirectoryAsync(string path)
         {
             if (await ExistDirectoryAsync(path))
                 throw new DirectoryExistException();
@@ -56,52 +56,58 @@ namespace SampleWS
             var message = RequestMessageMaker(HttpMethod.Put, BaseAddress + AdditionalAddress + path,
                 "{\"type\":\"directory\"}");
             var response = await _client.SendAsync(message);
-            return response.StatusCode switch
+            switch (response.StatusCode)
             {
-                HttpStatusCode.Created => true,
-                HttpStatusCode.BadRequest => throw (JsonConvert.DeserializeObject<BadRequestException>(
-                    await response.Content.ReadAsStringAsync()) ?? new BadRequestException()),
-                HttpStatusCode.InternalServerError when (await response.Content.ReadAsStringAsync()).Contains(
-                    "The system cannot find the path specified") => throw new DirectoryNotFoundException(),
-                HttpStatusCode.InternalServerError => throw (JsonConvert.DeserializeObject<InternalServerException>(
-                    await response.Content.ReadAsStringAsync()) ?? new InternalServerException()),
-                _ => throw new HttpRequestException($"Create Directory Exception{response.StatusCode}", null,
-                    response.StatusCode)
-            };
+                case HttpStatusCode.Created : return;
+                case HttpStatusCode.NotFound: throw new DirectoryNotFoundException();
+                case HttpStatusCode.BadRequest:
+                    throw (JsonConvert.DeserializeObject<BadRequestException>(
+                        await response.Content.ReadAsStringAsync()) ?? new BadRequestException());
+                case HttpStatusCode.InternalServerError when (await response.Content.ReadAsStringAsync()).Contains(
+                    "The system cannot find the path specified"): throw new DirectoryNotFoundException();
+                case HttpStatusCode.InternalServerError:
+                    throw (JsonConvert.DeserializeObject<InternalServerException>(
+                        await response.Content.ReadAsStringAsync()) ?? new InternalServerException());
+                default:
+                    throw new HttpRequestException($"Create Directory Exception{response.StatusCode}", null,
+                        response.StatusCode);
+            }
         }
 
-        public async Task UploadFileAsync(string path, string name, string content,
-            Format.UploadFormat? format = Format.UploadFormat.text)
+        public async Task<string> UploadFileAsync(string path, string name, string content,
+            ContentFormat ? format = ContentFormat .Text)
         {
             if (await ExistFileAsync(path, name))
                 throw new ConflictException();
-            string stringContent;
+            
             switch (format)
             {
-                case Format.UploadFormat.base64:
-                    stringContent = $"{{\"type\": \"file\",\"format\": \"base64\",\"content\": \"{content}\"}}";
+                case ContentFormat .Base64:
+                    content = $"{{\"type\": \"file\",\"format\": \"base64\",\"content\": \"{content}\" }}";
                     break;
-                case Format.UploadFormat.text:
-                    stringContent = $"{{\"type\": \"file\",\"format\": \"text\",\"content\": \"{content}\"}}";
+                case ContentFormat .Text:
+                    content = $"{{\"type\": \"file\",\"format\": \"text\",\"content\": \"{content}\" }}";
                     break;
-                case Format.UploadFormat.json:
-                    stringContent = $"{{\"type\": \"file\",\"format\": \"json\",\"content\": \"{content}\"}}";
+                case ContentFormat .Json:
+                    content = $"{{\"type\": \"file\",\"format\": \"json\",\"content\": \"{content}\" }}";
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(format), format, null);
             }
 
             var message =
-                RequestMessageMaker(HttpMethod.Put, BaseAddress + AdditionalAddress + path + "/" + name, stringContent);
+                RequestMessageMaker(HttpMethod.Put, BaseAddress + AdditionalAddress + path + "/" + name, content);
             var response = await _client.SendAsync(message);
-
+              // Console.WriteLine($"\n>>>request <-> {await message.Content.ReadAsStringAsync()}\n");
+            
+              Console.WriteLine($"\n<<<{response.StatusCode} <-> {await response.Content.ReadAsStringAsync()}\n");
             switch (response.StatusCode)
             {
                 case HttpStatusCode.OK:
-                    return;
-                //if multi threads are working on same file, here may change content of a  file with content instead of throwing FileNotFoundException()
+                    return $"{path}/{name}";
+                //if multi threads work on same file, here may change content of a  file with content instead of throwing ConflictException()
                 case HttpStatusCode.Created:
-                    return;
+                    return $"{path}/{name}";
                 case HttpStatusCode.BadRequest:
                     throw (JsonConvert.DeserializeObject<BadRequestException>(
                         await response.Content.ReadAsStringAsync()) ?? new BadRequestException());
@@ -117,9 +123,9 @@ namespace SampleWS
         }
 
         public async Task<FileDetails> DownloadFileAsync(string path, string name,
-            Format.DownloadFormat? format = Format.DownloadFormat.text)
+            ContentFormat ? format = ContentFormat .Text)
         {
-            var newPath = format == Format.DownloadFormat.base64
+            var newPath = format == ContentFormat .Base64
                 ? $"{BaseAddress}{AdditionalAddress}{path}/{name}?type=file&format=base64"
                 : $"{BaseAddress}{AdditionalAddress}{path}/{name}?type=file&format=text";
             var message = RequestMessageMaker(HttpMethod.Get, newPath);
@@ -166,21 +172,21 @@ namespace SampleWS
             return deserializedObjectList;
         }
 
-        public async Task ChangeContentFileAsync(string path, string name, string newContent,
-            Format.UploadFormat? format = Format.UploadFormat.text)
+        public async Task EditFileAsync(string path, string name, string newContent,
+            ContentFormat ? format = ContentFormat .Text)
         {
             if (!await ExistFileAsync(path, name))
                 throw new FileNotFoundException();
             string stringContent;
             switch (format)
             {
-                case Format.UploadFormat.base64:
+                case ContentFormat .Base64:
                     stringContent = $"{{\"type\": \"file\",\"format\": \"base64\",\"content\": \"{newContent}\"}}";
                     break;
-                case Format.UploadFormat.text:
+                case ContentFormat .Text:
                     stringContent = $"{{\"type\": \"file\",\"format\": \"text\",\"content\": \"{newContent}\"}}";
                     break;
-                case Format.UploadFormat.json:
+                case ContentFormat .Json:
                     stringContent = $"{{\"type\": \"file\",\"format\": \"json\",\"content\": \"{newContent}\"}}";
                     break;
                 default:
@@ -275,7 +281,7 @@ namespace SampleWS
         #region Stream
 
         public async Task<bool> UploadFileAsStreamAsync(string path, string name, Stream content,
-            Format.UploadFormat? format = Format.UploadFormat.text)
+            ContentFormat ? format = ContentFormat .Text)
         {
             var message = RequestMessageMaker(HttpMethod.Post, BaseAddress + AdditionalAddress + path);
             var response = await _client.SendAsync(message);
@@ -292,19 +298,19 @@ namespace SampleWS
         }
 
         public async Task<bool> ChangeContentFileAsStreamAsync(string path, string name, Stream newContent,
-            Format.UploadFormat? format = Format.UploadFormat.text)
+            ContentFormat ? format = ContentFormat .Text)
         {
             /* Stream streamContent;
              newContent.
              switch (format)
              {
-                 case Format.UploadFormat.base64:
+                 case Format .base64:
                      streamContent = $"{{\"type\": \"file\",\"format\": \"base64\",\"content\": \"{newContent}\"}}";
                      break;
-                 case Format.UploadFormat.text:
+                 case Format .text:
                      streamContent= $"{{\"type\": \"file\",\"format\": \"text\",\"content\": \"{newContent}\"}}";
                      break;
-                 case Format.UploadFormat.json:
+                 case Format .json:
                      streamContent = $"{{\"type\": \"file\",\"format\": \"json\",\"content\": \"{newContent}\"}}";
                      break;
                  case null:
@@ -323,9 +329,9 @@ namespace SampleWS
         }
 
         public async Task<Stream> DownloadFileAsStreamAsync(string path, string name,
-            Format.DownloadFormat? format = Format.DownloadFormat.text)
+            ContentFormat ? format = ContentFormat .Text)
         {
-            var newPath = format == Format.DownloadFormat.base64
+            var newPath = format == ContentFormat .Base64
                 ? $"{BaseAddress}{AdditionalAddress}{path}/{name}?type=file&format=base64"
                 : $"{BaseAddress}{AdditionalAddress}{path}/{name}?type=file&format=text";
             var message = RequestMessageMaker(HttpMethod.Get, newPath);
@@ -387,4 +393,4 @@ namespace SampleWS
     }
 }
 
-//              Console.WriteLine($"\n>>>{response.StatusCode} <-> {await response.Content.ReadAsStringAsync()}\n");
+//todo delete: Console.WriteLine($"\n>>>{response.StatusCode} <-> {await response.Content.ReadAsStringAsync()}\n");

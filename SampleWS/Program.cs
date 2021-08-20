@@ -14,6 +14,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SampleWS;
+using SampleWS.JupyterFileHandler;
 
 namespace SampleWS
 {
@@ -27,7 +29,6 @@ namespace SampleWS
         private const string XsrfHeaderKey = "X-XSRFToken";
         private const string XsrfCookieKey = "_xsrf";
         private static string XsrfToken = "2|18c66a09|7a13bf5ddbdce3960d3cba4f8780ca0a|1626098682";
-
         private const string LoginCookieKey = "username-localhost-8888";
 
         private static string LoginCookieValue =
@@ -41,17 +42,24 @@ namespace SampleWS
         static async Task Main(string[] args)
         {
             var cookies = await Login();
+            const string nameVar = "big1_";
+
+            IJupyterFileManager fileManager =
+                new JupyterFileManager("http://localhost:8888", XsrfToken, cookies[0], cookies[1]);
+            JupyterFileHandler.JupyterFileHandler fh =await JupyterFileHandler.JupyterFileHandler.
+                CreateAsync(fileManager, new JupyterFileSplitter(),"datatexdt");
             
-            var fh = new JupyterFileManager("http://localhost:8888", XsrfToken,cookies[0],cookies[1]);
-            await fh.DeleteFileAsync("bbb", "untitledoo");
+            var fileStream = new FileStream("D:\\Uni\\DataMining\\Hamiz\\tiny.csv", FileMode.Open);
+
+            var t =await fh.SendStaticFilesAsync("testfile.csv",fileStream, ContentFormat.Text);
+            
+            // await fh.CreateDirectoryAsync(path);
+            // await fh.DeleteFileAsync(path, "data2.csv");
             return;
-            // await fh.ChangeContentFileAsync("/bbb", "uyntitledi.t", "aaa");
-            // await fh.ChangeContentFileAsync("/bbb", "uyntitledi.t", "aaa");
-            // return;
-            string nameVar = "aakppgbfh";
-            
-            await fh.UploadFileAsync("",nameVar+"testfile.txt",BaseConverter.Base64Encode("\"Hello\n World! !!!\""),Format.UploadFormat.base64);
-            await fh.RenameFileAsync("", nameVar+"utestfile.txt", "test.txt");
+
+            await fileManager.UploadFileAsync("", nameVar + "testfile.txt", BaseConverter.Base64Encode("\"Hello\n World! !!!\""),
+                ContentFormat.Base64);
+            await fileManager.RenameFileAsync("", nameVar + "utestfile.txt", "test.txt");
             // var file =await fh.DownloadFileAsync("",nameVar+"testfile.txt",Format.DownloadFormat.base64);
 
             // var s =await fh.DownloadFileAsStreamAsync("",nameVar+"testfile.txt",Format.DownloadFormat.text);
@@ -69,7 +77,6 @@ namespace SampleWS
             // string str = Encoding.Default.GetString(bytes);
             // Console.WriteLine(str);
             //
-
             // Console.WriteLine(BaseConverter.Base64Decode(file.content));
             // Console.WriteLine(file.content);
             // Console.WriteLine(file.last_modified.GetType()+" "+file.last_modified.ToLongTimeString()+" "+file.last_modified.ToLongDateString()+" "+file.size+" "+file.mimetype);
@@ -100,7 +107,6 @@ namespace SampleWS
             // var sessionId = await StartSession(kernelId, CSharpKernel);
             // var webSocket = await ConnectToKernelAsync(kernelId, sessionId);
             // Console.WriteLine($"WebSocket state: {webSocket.State}");
-
         }
 
 
@@ -119,7 +125,8 @@ namespace SampleWS
                 requestJson = JsonConvert.SerializeObject(message);
                 // Console.WriteLine("request2>>>>>>>>>>>>>>>\n" + requestJson);
                 Console.WriteLine("-------------------------------------------------------------------------------");
-                await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true, default);
+                await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true,
+                    default);
             });
 
             message = CreateCSExecuteRequestMessage(sessionId, gc.FinalPart);
@@ -127,7 +134,7 @@ namespace SampleWS
             // Console.WriteLine("request3>>>>>>>>>>>>>>> " + requestJson);
             Console.WriteLine("-------------------------------------------------------------------------------");
             await webSocket.SendAsync(Encoding.UTF8.GetBytes(requestJson), WebSocketMessageType.Text, true, default);
-            
+
             await t;
         }
 
@@ -258,7 +265,7 @@ namespace SampleWS
             };
         }
 
-        
+
         private static async Task Receive(WebSocket socket)
         {
             var buffer = new ArraySegment<byte>(new byte[2048]);
@@ -280,21 +287,16 @@ namespace SampleWS
                 using var reader = new StreamReader(ms, Encoding.UTF8);
                 var received = await reader.ReadToEndAsync();
 
-                // var parsed = JObject.Parse(received);
-                // if(parsed["msg_type"].Equals("status") && parsed.ContainsKey("parent_header")))
-                // var obj = JsonConvert.DeserializeObject<JupyterMessage>(received);
+
                 Console.WriteLine(
                     $"received {DateTime.Now.ToLongTimeString()}<<<<<<<<<<<<\n{received}\n------------------------------------------------------");
-                // Console.WriteLine(received);
-                // Console.WriteLine("-------------------------------------------------------------------------------");
+
                 // Console.WriteLine();
             } while (true);
         }
 
-        
-        #region PythonMethods
 
-        
+        #region PythonMethods
 
         private static JupyterMessage CreateCSExecuteRequestMessage(string sessionId, string executecode = null)
         {
@@ -481,20 +483,41 @@ namespace SampleWS
             // return new() {{"Pic", File.ReadAllBytes("/Users/hosseinaghaei/Downloads/boy_result.jpg")}};
             return new() {{"Pic", File.ReadAllBytes("D:/Uni/form1-bolandi-karamozi.jpg")}};
         }
+
         #endregion
 
-    }
 
+        static async Task SendHeavyFile(IJupyterFileManager fileManager)
+        {
+            var path = "/HeavyFiles4";
+            const string nameVar = "big1_";
+            await using var file = new FileStream("D:\\Uni\\DataMining\\Hamiz\\data.csv", FileMode.Open);
+            var bytes = new byte[1000];
+            var packet = new byte[100_000_000];
+            var destCursor = 0;
+            var packetNum = 0;
+            for (var i = 0; i < file.Length; i += bytes.Length)
+            {
+                var len = (file.Length - i) > bytes.Length ? bytes.Length : (file.Length - i);
+                file.Read(bytes, 0, (int) len);
+                Array.Copy(bytes, 0, packet, destCursor, (int) len);
+                destCursor += bytes.Length;
+                if (destCursor >= packet.Length)
+                {
+                    var base64String = Convert.ToBase64String(packet, 0, packet.Length);
+                    await fileManager.UploadFileAsync(path, $"data_{nameVar}{packetNum}.csv", base64String,
+                        ContentFormat.Base64);
+                    packetNum++;
+                    destCursor = 0;
+                }
+            }
 
-    static class BaseConverter
-    {
-        public static string Base64Encode(string plainText) {
-            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-            return System.Convert.ToBase64String(plainTextBytes);
-        }
-        public static string Base64Decode(string base64EncodedData) {
-            var base64EncodedBytes = System.Convert.FromBase64String(base64EncodedData);
-            return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
+            if (destCursor != 0)
+            {
+                var base64String = Convert.ToBase64String(packet, 0, destCursor);
+                await fileManager.UploadFileAsync(path, $"data_{nameVar}{packetNum}.csv", base64String,
+                    ContentFormat.Base64);
+            }
         }
     }
 }
