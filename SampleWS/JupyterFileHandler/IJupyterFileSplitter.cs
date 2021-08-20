@@ -11,7 +11,7 @@ namespace SampleWS.JupyterFileHandler
         public bool HasNextPacket { get; }
 
         void Split(Stream stream,ContentFormat format);
+        void Split(byte[] byteArray,ContentFormat format);
         Task<string> GetSplit();
-        Task Split(byte[] byteArray);
     }
 }

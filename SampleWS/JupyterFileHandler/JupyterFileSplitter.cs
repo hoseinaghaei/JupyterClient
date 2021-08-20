@@ -20,9 +20,10 @@ namespace SampleWS.JupyterFileHandler
 
         private int _index;
         private Stream _stream;
+        private byte[] _bytes;
 
         public JupyterFileSplitter(int packetSize, int streamReaderByteArraySize)
-        {
+        { 
             if (streamReaderByteArraySize <= 0)
                 throw new ArgumentException(nameof(streamReaderByteArraySize) + "should be greater than 0");
             if (streamReaderByteArraySize > packetSize || packetSize % streamReaderByteArraySize != 0)
@@ -48,59 +49,81 @@ namespace SampleWS.JupyterFileHandler
             _index = 0;
             TotalPackets = (_stream.Length / PacketSize) + (_stream.Length % PacketSize == 0 ? 0 : 1);
             Format = format;
+            _bytes = null;
         }
+
+        public void Split(byte[] byteArray, ContentFormat format)
+        {
+            _bytes = byteArray;
+            if (byteArray.Length == 0)
+                NextPacketNum = -1;
+            NextPacketNum = 0;
+            _index = 0;
+            TotalPackets = (_bytes.Length / PacketSize) + (_bytes.Length % PacketSize == 0 ? 0 : 1);
+            Format = format;
+            _stream = null;
+        }
+
 
         public async Task<string> GetSplit()
         {
             if (!HasNextPacket)
                 throw new EndOfStreamException();
+            if (_stream is null && _bytes is null)
+                throw new Exception("byte[] and stream are Null");
 
+            if (_bytes is null)
+                return await GetStreamSplitAsync();
+            if (_stream is null)
+                return await GetByteArraySplitAsync();
+
+            throw new Exception("bug: byte[] and stream are Not Null");
+        }
+
+        private async Task<string> GetByteArraySplitAsync()
+        {
+            var packet = new byte[PacketSize];
+            var len = (_bytes.Length - (NextPacketNum * PacketSize) > PacketSize)
+                ? PacketSize
+                : _bytes.Length - (NextPacketNum * PacketSize);
+            Array.Copy(_bytes, NextPacketNum * PacketSize, packet, 0, len);
+            NextPacketNum++;
+            return ByteToString(packet, 0, len);
+        }
+
+        private async Task<string> GetStreamSplitAsync()
+        {
             var bytes = new byte[StreamReaderByteArraySize];
             var packet = new byte[PacketSize];
             var destCursor = 0;
-
             for (var i = _index; i < _stream.Length; i += bytes.Length)
             {
                 var len = (int) ((_stream.Length - i) > bytes.Length ? bytes.Length : (_stream.Length - i));
-
-                await _stream.ReadAsync(bytes, 0, (int) len);
-
-                Array.Copy(bytes, 0, packet, destCursor, (int) len);
+                await _stream.ReadAsync(bytes, 0, len);
+                Array.Copy(bytes, 0, packet, destCursor, len);
                 destCursor += len;
-
                 if (len < bytes.Length)
                 {
-                    var splitString =
-                        ByteToString(packet, 0, destCursor);
                     NextPacketNum++;
                     _index = i + bytes.Length;
-                    return splitString;
+                    return ByteToString(packet, 0, destCursor);
                 }
 
                 if (destCursor >= packet.Length)
                 {
-                    var splitString =
-                        ByteToString(packet, 0, packet.Length);
                     NextPacketNum++;
                     _index = i + bytes.Length;
-                    return splitString;
+                    return ByteToString(packet, 0, packet.Length);
                 }
             }
 
             if (destCursor != 0)
             {
-                var splitString = ByteToString(packet, 0, destCursor);
                 NextPacketNum++;
-                return splitString;
+                return ByteToString(packet, 0, destCursor);
             }
 
             throw new Exception("error");
-        }
-
-
-        public Task Split(byte[] byteArray)
-        {
-            throw new System.NotImplementedException();
         }
 
 

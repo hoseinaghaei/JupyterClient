@@ -47,12 +47,12 @@ namespace SampleWS
             IJupyterFileManager fileManager =
                 new JupyterFileManager("http://localhost:8888", XsrfToken, cookies[0], cookies[1]);
             JupyterFileHandler.JupyterFileHandler fh =await JupyterFileHandler.JupyterFileHandler.
-                CreateAsync(fileManager, new JupyterFileSplitter(),"datatexdt");
+                CreateAsync(fileManager, new JupyterFileSplitter(),"0bta222");
             
             var fileStream = new FileStream("D:\\Uni\\DataMining\\Hamiz\\tiny.csv", FileMode.Open);
+            var filebyte = Encoding.ASCII.GetBytes(File.ReadAllText("D:\\Uni\\DataMining\\Hamiz\\data101.txt"));
 
-            var t =await fh.SendStaticFilesAsync("testfile.csv",fileStream, ContentFormat.Text);
-            
+            var t =await fh.SendStaticFilesAsync("testfile.csv",filebyte, ContentFormat.Base64);
             // await fh.CreateDirectoryAsync(path);
             // await fh.DeleteFileAsync(path, "data2.csv");
             return;

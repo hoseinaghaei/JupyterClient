@@ -67,34 +67,72 @@ namespace SampleWS.JupyterFileHandler
                 addressList.Add(await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{StaticSubDir}",
                     $"P{_fileSplitter.NextPacketNum}_{fileName}", await _fileSplitter.GetSplit(), format));
             }
+
             return addressList;
         }
 
-        public async Task<List<string>>  SendStaticFilesAsync(string fileName, Stream content)
-        {
-            return await SendStaticFilesAsync(fileName, content, Format);
-        }
-
-        public async Task SendDynamicFilesAsync(string fileName, Stream content, ContentFormat format)
+        public async Task<List<string>> SendStaticFilesAsync(string fileName, byte[] content, ContentFormat format)
         {
             var addressList = new List<string>();
             _fileSplitter.Split(content, format);
             while (_fileSplitter.HasNextPacket)
             {
-                addressList.Add( await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{DynamicSubDir}", fileName, content, format));
-                ;
+                addressList.Add(await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{StaticSubDir}",
+                    $"P{_fileSplitter.NextPacketNum}_{fileName}", await _fileSplitter.GetSplit(), format));
             }
+
             return addressList;
-            await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{DynamicSubDir}", fileName, content, format);
         }
 
-        public async Task SendDynamicFilesAsync(string fileName, string content)
+        public async Task<List<string>> SendStaticFilesAsync(string fileName, Stream content)
         {
-            await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{DynamicSubDir}", fileName, content, Format);
+            return await SendStaticFilesAsync(fileName, content, Format);
+        }
+
+        public async Task<List<string>> SendStaticFilesAsync(string fileName, byte[] content)
+        {
+            return await SendStaticFilesAsync(fileName, content, Format);
+        }
+
+        public async Task<List<string>> SendDynamicFilesAsync(string fileName, Stream content, ContentFormat format)
+        {
+            var addressList = new List<string>();
+            _fileSplitter.Split(content, format);
+            while (_fileSplitter.HasNextPacket)
+            {
+                addressList.Add(await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{DynamicSubDir}", fileName,
+                    await _fileSplitter.GetSplit(), format));
+            }
+
+            return addressList;
+        }
+
+        public async Task<List<string>> SendDynamicFilesAsync(string fileName, byte[] content, ContentFormat format)
+        {
+            var addressList = new List<string>();
+            _fileSplitter.Split(content, format);
+            while (_fileSplitter.HasNextPacket)
+            {
+                addressList.Add(await _fileManager.UploadFileAsync($"/{JupyterDir}/{_id}/{DynamicSubDir}", fileName,
+                    await _fileSplitter.GetSplit(), format));
+            }
+
+            return addressList;
+        }
+
+        public async Task<List<string>> SendDynamicFilesAsync(string fileName, Stream content)
+        {
+            return await SendDynamicFilesAsync(fileName, content, Format);
+        }
+
+        public async Task<List<string>> SendDynamicFilesAsync(string fileName, byte[] content)
+        {
+            return await SendDynamicFilesAsync(fileName, content, Format);
         }
 
         public async Task<IEnumerable<FileDetails>> DownloadOutputFilesAsync(string fileName, string content)
         {
+            //todo should change
             var filesDetailsEnumerable = await _fileManager.GetDirectoryAsync($"/{JupyterDir}/{_id}/{OutPutSubDir}");
             var files = new List<FileDetails>();
             foreach (var file in files)
