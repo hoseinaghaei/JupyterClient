@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -8,13 +7,11 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.WebSockets;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using SampleWS;
 using SampleWS.JupyterFileHandler;
 
 namespace SampleWS
@@ -46,18 +43,44 @@ namespace SampleWS
 
             IJupyterFileManager fileManager =
                 new JupyterFileManager("http://localhost:8888", XsrfToken, cookies[0], cookies[1]);
-            JupyterFileHandler.JupyterFileHandler fh =await JupyterFileHandler.JupyterFileHandler.
-                CreateAsync(fileManager, new JupyterFileSplitter(),"0bta222");
-            
-            var fileStream = new FileStream("D:\\Uni\\DataMining\\Hamiz\\tiny.csv", FileMode.Open);
-            var filebyte = Encoding.ASCII.GetBytes(File.ReadAllText("D:\\Uni\\DataMining\\Hamiz\\data101.txt"));
 
-            var t =await fh.SendStaticFilesAsync("testfile.csv",filebyte, ContentFormat.Base64);
+            JupyterFileHandler.JupyterFileHandler fh =
+                await JupyterFileHandler.JupyterFileHandler.CreateAsync(fileManager, new JupyterFileSplitter(1000000,1000),
+                    "Tkikkl");
+
+
+            
+            var fileStream = new FileStream("D:\\Uni\\DataMining\\Hamiz\\data.txt", FileMode.Open);
+            var fileStreamTiny = new FileStream("D:\\Uni\\DataMining\\Hamiz\\tiny.csv", FileMode.Open);
+            var fileBytes = Encoding.ASCII.GetBytes("ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890");
+
+            var t0 = await fh.SendStaticFileAsync("testfile", "csv", fileBytes, ContentFormat.Base64);
+            var t1 = await fh.SendStaticFileAsync("testfllile", "csv", fileStream, ContentFormat.Base64);
+            var t2 = await fh.SendStaticFileAsync("testfiole", "csv", fileStreamTiny, ContentFormat.Base64);
+            // var r =await fh.SendDynamicFileAsync("testfile","csv",fileStream, ContentFormat.Base64);
+
+            var outDic = await fh.DownloadOutputFilesAsByteArrayAsync(ContentFormat.Text);
+
+            foreach (var file in outDic)
+            {
+                Console.WriteLine(file.Key+">>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                // Console.WriteLine(Encoding.Default.GetString(file.Value));
+            }
+            /*
+             foreach (var file in outDic)
+            {
+                Console.WriteLine(file.Key+">>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+                file.Value.Position = 0;
+                var reader = new StreamReader(file.Value);
+                Console.WriteLine(reader.ReadToEnd());
+            }
+            */
             // await fh.CreateDirectoryAsync(path);
             // await fh.DeleteFileAsync(path, "data2.csv");
             return;
 
-            await fileManager.UploadFileAsync("", nameVar + "testfile.txt", BaseConverter.Base64Encode("\"Hello\n World! !!!\""),
+            await fileManager.UploadFileAsync("", nameVar + "testfile.txt",
+                BaseConverter.Base64Encode("\"Hello\n World! !!!\""),
                 ContentFormat.Base64);
             await fileManager.RenameFileAsync("", nameVar + "utestfile.txt", "test.txt");
             // var file =await fh.DownloadFileAsync("",nameVar+"testfile.txt",Format.DownloadFormat.base64);

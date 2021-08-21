@@ -394,3 +394,5 @@ namespace SampleWS
 }
 
 //todo delete: Console.WriteLine($"\n>>>{response.StatusCode} <-> {await response.Content.ReadAsStringAsync()}\n");
+//todo return static dir name to static from output
+//todo download file? stream?
