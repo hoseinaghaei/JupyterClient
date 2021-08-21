@@ -159,6 +159,8 @@ namespace SampleWS.JupyterFileHandler
                 await streamWriter.WriteAsync(part.content);
             }
             await streamWriter.FlushAsync();
+            //todo streamWriter close
+            //todo another aproach for stream 
             return stream;
         }
 

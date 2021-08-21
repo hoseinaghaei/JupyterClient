@@ -7,8 +7,6 @@ namespace SampleWS.JupyterFileHandler
 {
     public interface IJupyterFileHandler : IAsyncDisposable
     {
-        ContentFormat Format { get; }
-
         Task<List<string>> SendStaticFileAsync(string fileName, string fileFormat, Stream content, ContentFormat format);
         Task<List<string>> SendStaticFileAsync(string fileName, string fileFormat, byte[] content, ContentFormat format);
         Task<List<string>> SendStaticFileAsync(string fileName, string fileFormat, Stream content);
