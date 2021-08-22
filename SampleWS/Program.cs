@@ -450,6 +450,33 @@ namespace SampleWS
                 parent_header = { }
             };
         }
+        
+        private static async Task KillKernels()
+        {
+            var baseAddress = new Uri($"http://localhost:8888/api/kernels");
+
+            var cookieContainer = new CookieContainer();
+            foreach (var cookie in GetCookies())
+            {
+                cookieContainer.Add(cookie);
+            }
+
+            using var handler = new HttpClientHandler() {CookieContainer = cookieContainer};
+            using var client = new HttpClient(handler) {BaseAddress = baseAddress};
+            var message = new HttpRequestMessage(HttpMethod.Get, baseAddress);
+            var response = await client.SendAsync(message);
+            var content = await response.Content.ReadAsStringAsync();
+            var kernels = JsonConvert.DeserializeObject<List<Kernel>>(content);
+
+            foreach (var kernel in kernels)
+            {
+                var uri2 = new Uri($"http://localhost:8888/api/kernels/{kernel.id}1");
+                var message2 = new HttpRequestMessage(HttpMethod.Delete, uri2) {Headers = {{XsrfHeaderKey, XsrfToken}}};
+                var response2 = await client.SendAsync(message2);
+                var content2 = await response2.Content.ReadAsStringAsync();
+                Console.WriteLine(content2);
+            }
+        }
 
         private static Dictionary<string, object> ReadPicture()
         {
